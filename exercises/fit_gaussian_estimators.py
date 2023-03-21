@@ -28,6 +28,7 @@ def test_univariate_gaussian():
         for current_sample_index in tqdm.trange(10, NUMBER_OF_SAMPLES, 10)])
 
     df1 = pd.DataFrame(samples_mean, columns=["Mean difference", "Sample size"])
+
     fig_q2 = px.line(df1, range_x=(0, NUMBER_OF_SAMPLES), x="Sample size", range_y=(0, 0.8), y="Mean difference"
                      , markers=True, title="Difference between Estimated mean and True mean over sample size")
     fig_q2.show()
@@ -40,8 +41,8 @@ def test_univariate_gaussian():
 
 def test_multivariate_gaussian():
     TRUE_MEAN = np.array([0, 0, 4, 0])
-    TRUE_COV_MAT = np.array([[1, 0.2, 0, 0],
-                             [0.2, 2, 0, 0.5],
+    TRUE_COV_MAT = np.array([[1, 0.2, 0, 0.5],
+                             [0.2, 2, 0, 0],
                              [0, 0, 1, 0],
                              [0.5, 0, 0, 1]])
     NUMBER_OF_SAMPLES = 1000
@@ -52,13 +53,25 @@ def test_multivariate_gaussian():
     print(multivariate_gaussian.mu_)
     print(multivariate_gaussian.cov_)
     # Question 5 - Likelihood evaluation
-    raise NotImplementedError()
+    NUMBER_OF_TRIALS = 200
 
+    f1, f3 = np.linspace(-10, 10, NUMBER_OF_TRIALS), np.linspace(-10, 10, NUMBER_OF_TRIALS)
+
+    log_likelihood = np.array(
+        [[multivariate_gaussian.log_likelihood(np.array([t1, 0, t2, 0]).T, TRUE_COV_MAT, X) for t1 in f1]
+         for t2 in tqdm.tqdm(f3)])
+
+    fig = px.imshow(log_likelihood, title="Log Likelihood over Features 1 and 3",
+                    labels=dict(x="Feature 3", y="Feature 1", color="Log likelihood"), x=f3, y=f1
+                    , color_continuous_scale=px.colors.sequential.Inferno)
+    fig.update_xaxes(side="top")
+    fig.show()
     # Question 6 - Maximum likelihood
-    raise NotImplementedError()
+    f1_index, f3_index = np.unravel_index(log_likelihood.argmax(), log_likelihood.shape)
+    print(round(f1[f1_index], 4), round(f3[f3_index], 4))
 
 
 if __name__ == '__main__':
     np.random.seed(0)
-    # test_univariate_gaussian()
+    test_univariate_gaussian()
     test_multivariate_gaussian()
