@@ -99,7 +99,7 @@ class UnivariateGaussian:
         log_likelihood: float
             log-likelihood calculated
         """
-        return -((X - mu) ** 2).sum()
+        return -1 / 2 * (np.log(2 * np.pi * sigma) + 1 / sigma * ((X - mu) ** 2).sum())
 
 
 class MultivariateGaussian:
@@ -147,8 +147,8 @@ class MultivariateGaussian:
         Then sets `self.fitted_` attribute to `True`
         """
         n_samples, n_features = X.shape
-        self.mu_ = np.mean(X, axis=1)
-        self.cov_ = np.cov(X, ddof=1)
+        self.mu_ = np.mean(X, axis=0)
+        self.cov_ = np.cov(X.T, ddof=1)
         self.fitted_ = True
         return self
 
@@ -195,5 +195,4 @@ class MultivariateGaussian:
         log_likelihood: float
             log-likelihood calculated over all input data and under given parameters of Gaussian
         """
-        # TODO FIX according to question 13 in theoretical part
-        return -((X - mu) ** 2).sum(axis=1)
+        return -1 / 2 * (np.log(((2 * np.pi) ** X.shape[1]) * det(cov)) + ((X - mu).dot(inv(cov)) * (X - mu)).sum())
