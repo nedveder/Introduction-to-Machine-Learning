@@ -51,6 +51,20 @@ def test_multivariate_gaussian():
     multivariate_gaussian = MultivariateGaussian()
     multivariate_gaussian.fit(X)
     print(multivariate_gaussian.mu_)
+    def bmatrix(a):
+        """Returns a LaTeX bmatrix
+
+        :a: numpy array
+        :returns: LaTeX bmatrix as a string
+        """
+        if len(a.shape) > 2:
+            raise ValueError('bmatrix can at most display two dimensions')
+        lines = str(a).replace('[', '').replace(']', '').splitlines()
+        rv = [r'\begin{bmatrix}']
+        rv += ['  ' + ' & '.join(l.split()) + r'\\' for l in lines]
+        rv += [r'\end{bmatrix}']
+        return '\n'.join(rv)
+
     print(multivariate_gaussian.cov_)
     # Question 5 - Likelihood evaluation
     NUMBER_OF_TRIALS = 200
@@ -58,11 +72,11 @@ def test_multivariate_gaussian():
     f1, f3 = np.linspace(-10, 10, NUMBER_OF_TRIALS), np.linspace(-10, 10, NUMBER_OF_TRIALS)
 
     log_likelihood = np.array(
-        [[multivariate_gaussian.log_likelihood(np.array([t1, 0, t2, 0]).T, TRUE_COV_MAT, X) for t1 in f1]
-         for t2 in tqdm.tqdm(f3)])
+        [[multivariate_gaussian.log_likelihood(np.array([t1, 0, t2, 0]).T, TRUE_COV_MAT, X) for t2 in f3]
+         for t1 in tqdm.tqdm(f1)])
 
-    fig = px.imshow(log_likelihood, title="Log Likelihood over Features 1 and 3",
-                    labels=dict(x="Feature 3", y="Feature 1", color="Log likelihood"), x=f3, y=f1
+    fig = px.imshow(log_likelihood, title="Log Likelihood of Univariate Gaussian as function of Features 1 and 3",
+                    labels=dict(x=r"Feature 3 $\mu_{3}$", y=r"Feature 1 $\mu_{1}$", color="Log likelihood"), x=f3, y=f1
                     , color_continuous_scale=px.colors.sequential.Inferno)
     fig.update_xaxes(side="top")
     fig.show()
