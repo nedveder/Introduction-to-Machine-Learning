@@ -1,7 +1,7 @@
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
 
-from typing import NoReturn
+from typing import NoReturn, Optional
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -26,7 +26,27 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
     Post-processed design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    raise NotImplementedError()
+    dtypes_dict = {'id': np.dtype('float64'),
+                   'price': np.dtype('float16'),
+                   'date': np.dtype('object'),
+                   'bedrooms': np.dtype('int64'),
+                   'bathrooms': np.dtype('float64'),
+                   'sqft_living': np.dtype('int64'),
+                   'sqft_lot': np.dtype('int64'),
+                   'floors': np.dtype('float64'),
+                   'waterfront': np.dtype('int64'),
+                   'view': np.dtype('float64'),
+                   'condition': np.dtype('float64'),
+                   'grade': np.dtype('float64'),
+                   'sqft_above': np.dtype('float64'),
+                   'sqft_basement': np.dtype('float64'),
+                   'yr_built': np.dtype('float64'),
+                   'yr_renovated': np.dtype('float64'),
+                   'zipcode': np.dtype('float64'),
+                   'lat': np.dtype('float64'),
+                   'long': np.dtype('float64'),
+                   'sqft_living15': np.dtype('float64'),
+                   'sqft_lot15': np.dtype('float64')}
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
