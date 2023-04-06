@@ -1,7 +1,7 @@
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
 
-from typing import NoReturn
+from typing import NoReturn, Optional
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -10,20 +10,43 @@ import plotly.io as pio
 pio.templates.default = "simple_white"
 
 
-def load_data(filename: str):
+def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
     """
-    Load house prices dataset and preprocess data.
+    preprocess data
     Parameters
     ----------
-    filename: str
-        Path to house prices dataset
+    X : DataFrame of shape (n_samples, n_features)
+        Design matrix of regression problem
+
+    y : array-like of shape (n_samples, )
+        Response vector corresponding given samples
 
     Returns
     -------
-    Design matrix and response vector (prices) - either as a single
+    Post-processed design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    raise NotImplementedError()
+    dtypes_dict = {'id': np.dtype('float64'),
+                   'price': np.dtype('float16'),
+                   'date': np.dtype('object'),
+                   'bedrooms': np.dtype('int64'),
+                   'bathrooms': np.dtype('float64'),
+                   'sqft_living': np.dtype('int64'),
+                   'sqft_lot': np.dtype('int64'),
+                   'floors': np.dtype('float64'),
+                   'waterfront': np.dtype('int64'),
+                   'view': np.dtype('float64'),
+                   'condition': np.dtype('float64'),
+                   'grade': np.dtype('float64'),
+                   'sqft_above': np.dtype('float64'),
+                   'sqft_basement': np.dtype('float64'),
+                   'yr_built': np.dtype('float64'),
+                   'yr_renovated': np.dtype('float64'),
+                   'zipcode': np.dtype('float64'),
+                   'lat': np.dtype('float64'),
+                   'long': np.dtype('float64'),
+                   'sqft_living15': np.dtype('float64'),
+                   'sqft_lot15': np.dtype('float64')}
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
@@ -48,13 +71,15 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
 
 if __name__ == '__main__':
     np.random.seed(0)
-    # Question 1 - Load and preprocessing of housing prices dataset
+    df = pd.read_csv("../datasets/house_prices.csv")
+
+    # Question 1 - split data into train and test sets
     raise NotImplementedError()
 
-    # Question 2 - Feature evaluation with respect to response
+    # Question 2 - Preprocessing of housing prices dataset
     raise NotImplementedError()
 
-    # Question 3 - Split samples into training- and testing sets.
+    # Question 3 - Feature evaluation with respect to response
     raise NotImplementedError()
 
     # Question 4 - Fit model over increasing percentages of the overall training data
