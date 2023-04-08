@@ -14,7 +14,7 @@ import plotly.io as pio
 import seaborn as sns
 
 pio.templates.default = "simple_white"
-ITERATIONS=10
+ITERATIONS = 10
 START_DATA_PERCENTAGE = 10
 END_DATA_PERCENTAGE = 100
 CURRENT_YEAR = 2023
@@ -60,6 +60,17 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
         if y is not None:
             y = y.loc[negative_indices]
 
+    # Filter out non-positive rows in the 'price' column
+    negative_price_indices = y > 0
+    X = X[negative_price_indices]
+    y = y[negative_price_indices]
+
+    # Add and remove features
+    X['is_renovated'] = X['yr_renovated'] != 0
+
+    # Remove unused features
+    X = X.drop(['id', 'date', 'yr_renovated'], axis=1)
+
     # Assign proper types for each column
     dtypes_dict = {'bedrooms': np.dtype('uint8'),
                    'bathrooms': np.dtype('float16'),
@@ -75,12 +86,6 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
                    'sqft_living15': np.dtype('uint16'),
                    'sqft_lot15': np.dtype('uint16')}
     X = X.astype(dtypes_dict)
-
-    # Add and remove features
-    X['is_renovated'] = X['yr_renovated'] != 0
-
-    # Remove unused features
-    X = X.drop(['id', 'date', 'yr_built', 'yr_renovated', 'condition', 'long', 'zipcode'], axis=1)
 
     # Filter out non-positive rows in the 'price' column
     negative_price_indices = y > 0
@@ -154,7 +159,7 @@ if __name__ == '__main__':
 
     # Question 4 - Fit model over increasing percentages of the overall training data
     n_steps = END_DATA_PERCENTAGE - START_DATA_PERCENTAGE
-    p_values = np.linspace(START_DATA_PERCENTAGE, END_DATA_PERCENTAGE, n_steps)
+    p_values = np.array(range(START_DATA_PERCENTAGE, END_DATA_PERCENTAGE))
     loss_values = np.zeros(n_steps)
     std_loss_values = np.zeros(n_steps)
 
