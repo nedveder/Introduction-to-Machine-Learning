@@ -14,6 +14,9 @@ import plotly.io as pio
 import seaborn as sns
 
 pio.templates.default = "simple_white"
+ITERATIONS=10
+START_DATA_PERCENTAGE = 10
+END_DATA_PERCENTAGE = 100
 CURRENT_YEAR = 2023
 
 
@@ -65,14 +68,10 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
                    'floors': np.dtype('float16'),
                    'waterfront': np.dtype('bool'),
                    'view': np.dtype('uint8'),
-                   'condition': np.dtype('uint8'),
                    'grade': np.dtype('uint8'),
                    'sqft_above': np.dtype('uint16'),
                    'sqft_basement': np.dtype('uint16'),
-                   'yr_built': np.dtype('uint16'),
-                   'yr_renovated': np.dtype('uint16'),
                    'lat': np.dtype('float32'),
-                   'long': np.dtype('float32'),
                    'sqft_living15': np.dtype('uint16'),
                    'sqft_lot15': np.dtype('uint16')}
     X = X.astype(dtypes_dict)
@@ -81,11 +80,7 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
     X['is_renovated'] = X['yr_renovated'] != 0
 
     # Remove unused features
-    X = X.drop(['id', 'date', 'yr_built', 'yr_renovated', 'condition', 'long'], axis=1)
-
-    X['zipcode'] = X['zipcode'].astype('category')
-    if y is None:
-        return X
+    X = X.drop(['id', 'date', 'yr_built', 'yr_renovated', 'condition', 'long', 'zipcode'], axis=1)
 
     # Filter out non-positive rows in the 'price' column
     negative_price_indices = y > 0
@@ -158,14 +153,15 @@ if __name__ == '__main__':
     feature_evaluation(processed_train_x, processed_train_y, "ex2_plots")
 
     # Question 4 - Fit model over increasing percentages of the overall training data
-    p_values = np.array(range(10, 101, 1))
-    loss_values = np.zeros(len(p_values))
-    std_loss_values = np.zeros(len(p_values))
+    n_steps = END_DATA_PERCENTAGE - START_DATA_PERCENTAGE
+    p_values = np.linspace(START_DATA_PERCENTAGE, END_DATA_PERCENTAGE, n_steps)
+    loss_values = np.zeros(n_steps)
+    std_loss_values = np.zeros(n_steps)
 
     for i, p in tqdm.tqdm(enumerate(p_values)):
         n_samples = int(len(processed_train_x) * (p / 100))
-        loss = np.zeros(10)
-        for iteration in range(10):
+        loss = np.zeros(ITERATIONS)
+        for j in range(ITERATIONS):
             sample_data_frame = processed_train_x.sample(n=n_samples)
             sample_data = sample_data_frame.to_numpy(dtype='float64')
             sample_label = processed_train_y[sample_data_frame.index].to_numpy(dtype='float64')
@@ -173,8 +169,8 @@ if __name__ == '__main__':
             linear_regression = LinearRegression()
             linear_regression.fit(sample_data, sample_label)
 
-            loss[iteration] = linear_regression.loss(processed_test_x.to_numpy(dtype='float64'),
-                                                     processed_test_y.to_numpy(dtype='float64'))
+            loss[j] = linear_regression.loss(processed_test_x.to_numpy(dtype='float64'),
+                                             processed_test_y.to_numpy(dtype='float64'))
         loss_values[i] = np.mean(loss)
         std_loss_values[i] = np.std(loss)
 
