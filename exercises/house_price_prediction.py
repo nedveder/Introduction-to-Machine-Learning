@@ -1,7 +1,5 @@
 import os
 
-from tqdm import tqdm
-
 from IMLearn.utils import split_train_test
 from IMLearn.learners.regressors import LinearRegression
 
@@ -150,7 +148,7 @@ def fit_and_predict_model(p_values, loss_values, std_loss_values):
 
     """
     linear_regression = LinearRegression(False)
-    for i, p in tqdm(enumerate(p_values)):
+    for i, p in enumerate(p_values):
         loss = np.zeros(ITERATIONS)
         for j in range(ITERATIONS):
             # Create samples
