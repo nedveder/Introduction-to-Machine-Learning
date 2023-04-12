@@ -4,6 +4,8 @@ from ...base import BaseEstimator
 import numpy as np
 from numpy.linalg import pinv
 
+from ...metrics import mean_square_error
+
 
 class LinearRegression(BaseEstimator):
     """
@@ -84,4 +86,4 @@ class LinearRegression(BaseEstimator):
         loss : float
             Performance under MSE loss function
         """
-        return ((self.predict(X) - y) ** 2).mean()
+        return mean_square_error(self.predict(X), y)
