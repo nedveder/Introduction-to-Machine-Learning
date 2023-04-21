@@ -9,16 +9,20 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
 
+CATEGORICAL_COLUMNS = ['zipcode', 'decades_ago_built', 'grade', 'view', 'condition', 'bedrooms', 'floors']
+
 pio.templates.default = "simple_white"
 ITERATIONS = 10
 START_DATA_PERCENTAGE = 10
 END_DATA_PERCENTAGE = 100
 CURRENT_YEAR = 2023
+train_columns = []
+training_data_column_median = []
 
 
-def remove_negative_prices(X: pd.DataFrame):
+def remove_na_prices(X: pd.DataFrame):
     """
-        Parameters
+    Parameters
     ----------
     X : DataFrame of shape (n_samples, n_features)
         Design matrix of regression problem
@@ -28,7 +32,7 @@ def remove_negative_prices(X: pd.DataFrame):
 
     """
     # Filter out non-positive rows in the 'price' column
-    return X[X['price'] > 0]
+    return X[X['price'].notna()]
 
 
 def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
@@ -46,43 +50,63 @@ def preprocess_data(X: pd.DataFrame, y: Optional[pd.Series] = None):
     Post-processed design matrix and response vector (prices) - either as a single
     DataFrame or a Tuple[DataFrame, Series]
     """
-    # Fill all NA values with mean values of each column
-    X.fillna(X.mean(numeric_only=True), inplace=True)
+    global training_data_column_median
+    is_test = y is None
 
-    # If house was renovated and the renovation is new in comparison to other renovations
-    X['was_renovated_recently'] = np.where(X['yr_renovated'] >= np.percentile(X['yr_renovated'].unique(), 75), 0, 1)
-    X['was_renovated_recently'] = X['was_renovated_recently'].astype('uint8')
+    if not is_test:
+        training_data_column_median = X.median(numeric_only=True)
 
-    # Deal with zipcode, turn to category and separate
+    # Fill all NA values with median values of each column
+    X.fillna(value=training_data_column_median, inplace=True)
+
+    # If house was renovated recently
+    X['was_renovated_recently'] = (X['yr_renovated'] > training_data_column_median.T['yr_renovated'])
+    # Deal with zipcode
     X['zipcode'] = X['zipcode'].astype('uint32')
-    X = pd.get_dummies(X, prefix='zipcode_', columns=['zipcode'])
+    # Deal with year built, turn to category of how many decades ago was the house built
+    X['decades_ago_built'] = ((CURRENT_YEAR - X['yr_built'].astype('uint16')) // 10).astype('uint16')
+    X['waterfront'] = X['waterfront'].astype('uint8')
 
-    # Deal with sqft above and basement, turn to category and separate
-    X['percentage_above'] = X['sqft_above'] / (X['sqft_above'] + X['sqft_basement'])
-    X['percentage_above'] = X['percentage_above'].astype('float32')
-
-    # Deal with year built, turn to category of how many decades ago was the house built, and separate
-    X['decades_ago_built'] = ((CURRENT_YEAR - X['yr_built']) // 10).astype('uint16')
-    X = pd.get_dummies(X, prefix='decades_ago_built_', columns=['decades_ago_built'])
+    X = preprocess_categorical(X, is_test)
 
     # Remove unwanted features
-    X = X.drop(['id', 'date', 'yr_renovated', 'lat', 'long', 'sqft_lot15', 'sqft_living15', 'yr_built', 'sqft_above',
-                'sqft_basement'], axis=1)
+    X = X.drop(['id', 'date', 'yr_renovated', 'lat', 'long', 'sqft_lot15', 'sqft_living15', 'yr_built'], axis=1)
 
     # Fix other features
-    for col in ['bedrooms', 'bathrooms', 'floors']:
-        X[col] = np.where(X[col] >= 0, X[col], X[col].median()).astype('uint16')
-        X[col] = np.where(X[col] <= 12, X[col], X[col].median()).astype('uint16')
+    X['bathrooms'] = np.where(X['bathrooms'] >= 0, X['bathrooms'], training_data_column_median.T['bathrooms'])
+    X['bathrooms'] = np.where(X['bathrooms'] <= 12, X['bathrooms'], training_data_column_median.T['bathrooms'])
+    X['bathrooms'] = X['bathrooms'].astype('float32')
 
-    for col in ['sqft_living', 'sqft_lot']:
-        X[col] = np.where(X[col] > 0, X[col], X[col].median()).astype('uint32')
+    X['sqft_living'] = np.where(X['sqft_living'] > 0, X['sqft_living'], training_data_column_median.T['sqft_living'])
+    X['sqft_living'] = X['sqft_living'].astype('uint32')
 
-    X['waterfront'] = X['waterfront'].astype('uint8')
-    X['view'] = X['view'].astype('uint8')
-    X['condition'] = X['condition'].astype('uint8')
-    X['grade'] = X['grade'].astype('uint8')
+    if not is_test:
+        return X, y
+    return X
 
-    return (X, y) if y is not None else X
+
+def preprocess_categorical(X, is_test):
+    """
+    Preprocess the categorical variables in the given dataset by handling zipcode and year built features.
+    If the input dataset is a test set, the function uses the columns from the training set to ensure consistency.
+
+    Parameters:
+        X (pd.DataFrame): The input dataset containing the categorical features to be preprocessed.
+        is_test (bool): A flag indicating whether the input dataset is a test set or not.
+
+    Returns:
+        X (pd.DataFrame): The preprocessed dataset with the categorical features encoded as dummy variables.
+
+    """
+    global train_columns
+    for col_name in CATEGORICAL_COLUMNS:
+        X[f"{col_name}_other"] = 0
+        X = pd.get_dummies(X, columns=[col_name], prefix=f"{col_name}", dtype=np.dtype('uint8'))
+    if is_test:
+        X = X.reindex(columns=train_columns, fill_value=0)
+    else:
+        train_columns = X.columns
+    return X
 
 
 def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") -> NoReturn:
@@ -102,12 +126,16 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
     output_path: str (default ".")
         Path to folder in which plots are saved
     """
-    # iterate over each feature and create a scatter plot with the response variable
+    # Iterate over each feature and create a scatter plot with the response variable
     for col in X.columns:
-        if 'zipcode_' in col or 'decades_ago_built_' in col:
-            continue
-        # calculate Pearson correlation between feature and response
-        pearson_correlation = np.cov(X[col].values, y.values)[0, 1] / (np.std(X[col]) * np.std(y))
+        # Calculate Pearson correlation between feature and response
+        # Unbiased std estimators
+        std_x = np.std(X[col], ddof=1)
+        std_y = np.std(y, ddof=1)
+        if std_x != 0 and std_y != 0:
+            pearson_correlation = np.cov(X[col].values, y.values, ddof=1)[0, 1] / (std_x * std_y)
+        else:
+            pearson_correlation = 0
 
         # create scatter plot
         fig = go.Figure(go.Scatter(x=X[col], y=y, mode='markers'),
@@ -122,30 +150,55 @@ def feature_evaluation(X: pd.DataFrame, y: pd.Series, output_path: str = ".") ->
 
 
 def generate_regression_figure(p_values, loss_values, std_loss_values):
-    fig = go.Figure([go.Scatter(x=p_values, y=loss_values,
-                                mode='lines+markers',
-                                line=dict(color='black', width=2),
-                                name='Average Loss'),
-                     go.Scatter(x=p_values, y=loss_values - 2 * std_loss_values,
-                                fill=None,
-                                mode='lines',
-                                line=dict(color='lightgrey'),
-                                name='Error Ribbon',
-                                showlegend=False),
-                     go.Scatter(x=p_values, y=loss_values + 2 * std_loss_values,
-                                fill='tonexty',
-                                mode='lines',
-                                line=dict(color='lightgrey'),
-                                name='Confidence Interval')],
-                    layout=go.Layout(title='Average Loss as Function of Training Size',
-                                     xaxis=dict(title='Training Size (%)'),
-                                     yaxis=dict(title='Average Loss')))
-    fig.show()
+    """
+    Generate a plotly figure displaying the average loss as a function of training size.
+    This function creates a plotly figure with three lines, representing the average loss, and the lower and upper
+    bounds of the confidence interval, respectively. The confidence interval is shaded in light grey.
+
+    Parameters:
+        p_values (np.ndarray): A list of percentages corresponding to the training set size.
+        loss_values (np.ndarray): A list of average loss values for each percentage in p_values.
+        std_loss_values (np.ndarray): A list of standard deviation values for the loss corresponding to each percentage in
+        p_values.
+
+    Returns:
+        go.Figure: The function displays the plotly figure.
+    """
+    return go.Figure([go.Scatter(x=p_values, y=loss_values,
+                                 mode='lines+markers',
+                                 line=dict(color='black', width=2),
+                                 name='Average Loss'),
+                      go.Scatter(x=p_values, y=loss_values - 2 * std_loss_values,
+                                 fill=None,
+                                 mode='lines',
+                                 line=dict(color='lightgrey'),
+                                 name='Error Ribbon',
+                                 showlegend=False),
+                      go.Scatter(x=p_values, y=loss_values + 2 * std_loss_values,
+                                 fill='tonexty',
+                                 mode='lines',
+                                 line=dict(color='lightgrey'),
+                                 name='Confidence Interval')],
+                     layout=go.Layout(title='Average Loss as Function of Training Size',
+                                      xaxis=dict(title='Training Size (%)'),
+                                      yaxis=dict(title='Average Loss')))
 
 
 def fit_and_predict_model(p_values, loss_values, std_loss_values):
     """
+    Fit a linear regression model on a dataset and predict its loss for different percentages of sampled data.
+    This function iterates through the given percentages (p_values) and samples the dataset accordingly. For each
+    percentage, the linear regression model is fitted ITERATIONS number of times on the sampled data, and the mean loss
+    and standard deviation of the loss are calculated for each percentage.
 
+    Parameters:
+        p_values (np.ndarray): A list of percentages to sample the dataset for training.
+        loss_values (np.ndarray): A list to store the mean loss for each percentage of sampled data.
+        std_loss_values (np.ndarray): A list to store the standard deviation of the loss for each percentage of sampled data.
+
+    Returns:
+        tuple: A tuple containing the updated lists of mean loss (loss_values) and standard deviation of the loss
+        (std_loss_values).
     """
     linear_regression = LinearRegression(False)
     for i, p in enumerate(p_values):
@@ -171,17 +224,17 @@ if __name__ == '__main__':
     df = pd.read_csv("../datasets/house_prices.csv")
 
     # Question 1 - split data into train and test sets
-    df = remove_negative_prices(df)
+    df = remove_na_prices(df)
     train_x, train_y, test_x, test_y = split_train_test(df.drop('price', axis=1), df['price'])
     print("Data split into train and test")
 
     # Question 2 - Preprocessing of housing prices dataset
-    processed_train_x, processed_train_y = preprocess_data(train_x), train_y
+    processed_train_x, processed_train_y = preprocess_data(train_x, train_y)
     processed_test_x, processed_test_y = preprocess_data(test_x), test_y
     print("Data Processed")
 
     # Question 3 - Feature evaluation with respect to response
-    feature_evaluation(processed_train_x, processed_train_y, "ex2_plots")
+    # feature_evaluation(processed_train_x, processed_train_y, "ex2_plots")
     print("Features evaluated")
 
     # Question 4 - Fit model over increasing percentages of the overall training data
@@ -195,5 +248,6 @@ if __name__ == '__main__':
                                                                        std_loss_avg_per_batch)
 
     # Plot the results
-    generate_regression_figure(training_percentage, loss_avg_per_batch, std_loss_avg_per_batch)
+    fig = generate_regression_figure(training_percentage, loss_avg_per_batch, std_loss_avg_per_batch)
+    fig.show()
     print("Finished Training")
