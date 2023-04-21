@@ -234,7 +234,7 @@ if __name__ == '__main__':
     print("Data Processed")
 
     # Question 3 - Feature evaluation with respect to response
-    # feature_evaluation(processed_train_x, processed_train_y, "ex2_plots")
+    feature_evaluation(processed_train_x, processed_train_y, "ex2_plots")
     print("Features evaluated")
 
     # Question 4 - Fit model over increasing percentages of the overall training data
