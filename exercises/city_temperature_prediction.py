@@ -1,4 +1,3 @@
-import IMLearn.learners.regressors.linear_regression
 from IMLearn.learners.regressors import PolynomialFitting
 from IMLearn.utils import split_train_test
 
@@ -24,11 +23,12 @@ def load_data(filename: str) -> pd.DataFrame:
     -------
     Design matrix and response vector (Temp)
     """
-    df = pd.read_csv(filename, parse_dates=['Date'])
+    data = pd.read_csv(filename, parse_dates=['Date'])
     # Fix labels
-    df['Temp'] = df.groupby(['Month', 'City'])['Temp'].transform(lambda x: x.mask(x.lt(-70), x.mean()))
-    df['DayOfYear'] = df['Date'].dt.dayofyear
-    return df
+    data['Temp'] = data.groupby(['Month', 'City'])['Temp'].transform(lambda x: x.mask(x.lt(-70), x.mean()))
+    # Add feature
+    data['DayOfYear'] = data['Date'].dt.dayofyear
+    return data
 
 
 def israel_data_exploration(sample_df):
@@ -89,20 +89,20 @@ def fit_model_over_israel(israel_df):
 
 def fit_model_over_all_countries(data):
     polynomial_fitting = PolynomialFitting(SELECTED_DEGREE)
-    israel_df = df[df['Country'] == 'Israel']
+    israel_df = data[data['Country'] == 'Israel']
     train_x, train_y = israel_df.drop('Temp', axis=1)['DayOfYear'], israel_df['Temp']
     polynomial_fitting.fit(train_x.to_numpy(dtype='float64'),
                            train_y.to_numpy(dtype='float64'))
 
-    loss_per_country = np.zeros(df['Country'].unique().shape[0])
-    for i, country in enumerate(df['Country'].unique()):
-        country_df = df[df['Country'] == country]
+    loss_per_country = np.zeros(data['Country'].unique().shape[0])
+    for i, country in enumerate(data['Country'].unique()):
+        country_df = data[data['Country'] == country]
         test_x, test_y = country_df.drop('Temp', axis=1)['DayOfYear'], country_df['Temp']
         loss_per_country[i] = polynomial_fitting.loss(test_x.to_numpy(dtype='float64'),
                                                       test_y.to_numpy(dtype='float64'))
 
     # Creating a bar plot of the errors
-    fig = px.bar(df, x=df['Country'].unique(), y=loss_per_country, color=loss_per_country)
+    fig = px.bar(data, x=data['Country'].unique(), y=loss_per_country, color=loss_per_country)
     fig.update_layout(title='Test Errors of Model Trained on Israel Data on Other Countries', xaxis_title='Country',
                       yaxis_title='Test Error (MSE)', uniformtext_minsize=8, uniformtext_mode='hide')
     fig.show()
@@ -114,13 +114,13 @@ if __name__ == '__main__':
     df = load_data("../datasets/City_Temperature.csv")
 
     # Question 2 - Exploring data for specific country
-    # israel_data_exploration(df[df['Country'] == 'Israel'])
+    israel_data_exploration(df[df['Country'] == 'Israel'])
 
     # Question 3 - Exploring differences between countries
-    # data_exploration(df)
+    data_exploration(df)
 
     # Question 4 - Fitting model for different values of `k`
-    # fit_model_over_israel(df[df['Country'] == 'Israel'])
+    fit_model_over_israel(df[df['Country'] == 'Israel'])
 
     # Question 5 - Evaluating fitted model on different countries
     fit_model_over_all_countries(df)
