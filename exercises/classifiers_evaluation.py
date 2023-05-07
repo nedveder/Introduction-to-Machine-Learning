@@ -1,3 +1,5 @@
+import numpy as np
+
 from IMLearn.learners.classifiers import Perceptron, LDA, GaussianNaiveBayes
 from typing import Tuple
 from utils import *
@@ -8,7 +10,7 @@ from math import atan2, pi
 
 def load_dataset(filename: str) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Load dataset for comparing the Gaussian Naive Bayes and LDA classifiers. File is assumed to be an
+    Load dataset. File is assumed to be an
     ndarray of shape (n_samples, 3) where the first 2 columns represent features and the third column the class
 
     Parameters
@@ -36,16 +38,23 @@ def run_perceptron():
     Create a line plot that shows the perceptron algorithm's training loss values (y-axis)
     as a function of the training iterations (x-axis).
     """
-    for n, f in [("Linearly Separable", "linearly_separable.npy"), ("Linearly Inseparable", "linearly_inseparable.npy")]:
+    fig = make_subplots(rows=1, cols=2)
+    for i, (n, f) in enumerate([("Linearly Separable", "linearly_separable.npy"),
+                                ("Linearly Inseparable", "linearly_inseparable.npy")]):
         # Load dataset
-        raise NotImplementedError()
+        X, true_y = load_dataset(f"../datasets/{f}")
 
         # Fit Perceptron and record loss in each fit iteration
         losses = []
-        raise NotImplementedError()
+        Perceptron(callback=lambda perceptron, _, __: losses.append(perceptron.loss(X, true_y))).fit(X, true_y)
 
         # Plot figure of loss as function of fitting iteration
-        raise NotImplementedError()
+        fig.add_trace(go.Scatter(y=losses, mode='lines', name=n), row=1, col=i + 1)
+
+    fig.update_layout(title='Perceptron Algorithm Training Loss',
+                      xaxis_title='Training Iterations',
+                      yaxis_title='Loss')
+    fig.show()
 
 
 def get_ellipse(mu: np.ndarray, cov: np.ndarray):

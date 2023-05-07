@@ -31,6 +31,7 @@ class Perceptron(BaseEstimator):
             A callable to be called after each update of the model while fitting to given data
             Callable function should receive as input a Perceptron instance, current sample and current response
     """
+
     def __init__(self,
                  include_intercept: bool = True,
                  max_iter: int = 1000,
@@ -73,7 +74,34 @@ class Perceptron(BaseEstimator):
         -----
         Fits model with or without an intercept depending on value of `self.fit_intercept_`
         """
-        raise NotImplementedError()
+        # Add an intercept column to the input data if include_intercept_ is True
+        if self.include_intercept_:
+            X = np.insert(X, 0, 1, axis=1)
+
+        # Initialize the coefficients with zeros
+        self.coefs_ = np.zeros(X.shape[1])
+
+        # Set fitted_ to True, indicating that the model is fitted - So we can get loss while running
+        self.fitted_ = True
+
+        # Iterate over the data for a maximum number of iterations (self.max_iter_)
+        for _ in range(self.max_iter_):
+
+            # Find the first misclassified sample (x_i, y_i) in the data, if any
+            x_i, y_i = next(((X[i], y[i]) for i in range(len(X)) if y[i] * (X[i] @ self.coefs_) <= 0), (None, None))
+
+            # If there are no misclassified samples, meaning we found a linear seperator, break the loop
+            if x_i is None:
+                break
+
+            # Update the coefficients based on the misclassified sample
+            self.coefs_ += y_i * x_i
+
+            # Call the callback function with the
+            self.callback_(self, x_i, y_i)
+
+        # Call the callback function with the
+        self.callback_(self, None, None)
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -89,7 +117,12 @@ class Perceptron(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        # If include_intercept_ is True, add an intercept column to the input data
+        if self.include_intercept_:
+            X = np.insert(X, 0, 1, axis=1)
+
+        # Compute the dot product of input data and coefficients, apply the sign function to get the predictions
+        return np.sign(X @ self.coefs_)
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -109,4 +142,4 @@ class Perceptron(BaseEstimator):
             Performance under missclassification loss function
         """
         from ...metrics import misclassification_error
-        raise NotImplementedError()
+        return misclassification_error(y, self._predict(X))
