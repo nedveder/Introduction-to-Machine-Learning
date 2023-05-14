@@ -1,5 +1,3 @@
-import numpy as np
-
 from IMLearn.learners.classifiers import Perceptron, LDA, GaussianNaiveBayes
 from typing import Tuple
 from utils import *
@@ -39,17 +37,20 @@ def run_perceptron():
     as a function of the training iterations (x-axis).
     """
     fig = make_subplots(rows=1, cols=2)
-    for i, (n, f) in enumerate([("Linearly Separable", "linearly_separable.npy"),
-                                ("Linearly Inseparable", "linearly_inseparable.npy")]):
+    for i, (n, f) in enumerate(
+            [("Linearly Separable", "linearly_separable.npy"),
+             ("Linearly Inseparable", "linearly_inseparable.npy")]):
         # Load dataset
         X, true_y = load_dataset(f"../datasets/{f}")
 
         # Fit Perceptron and record loss in each fit iteration
         losses = []
-        Perceptron(callback=lambda perceptron, _, __: losses.append(perceptron.loss(X, true_y))).fit(X, true_y)
+        Perceptron(callback=lambda perceptron, _, __: losses.append(
+            perceptron.loss(X, true_y))).fit(X, true_y)
 
         # Plot figure of loss as function of fitting iteration
-        fig.add_trace(go.Scatter(y=losses, mode='lines', name=n), row=1, col=i + 1)
+        fig.add_trace(go.Scatter(y=losses, mode='lines', name=n), row=1,
+                      col=i + 1)
 
     fig.update_layout(title='Perceptron Algorithm Training Loss',
                       xaxis_title='Training Iterations',
@@ -86,27 +87,49 @@ def compare_gaussian_classifiers():
     """
     Fit both Gaussian Naive Bayes and LDA classifiers on both gaussians1 and gaussians2 datasets
     """
-    for f in ["gaussian1.npy", "gaussian2.npy"]:
+    for f in ["gaussian1", "gaussian2"]:
         # Load dataset
-        raise NotImplementedError()
+        X, true_y = load_dataset(f"../datasets/{f}.npy")
 
         # Fit models and predict over training set
-        raise NotImplementedError()
+        lda = LDA()
+        gnb = GaussianNaiveBayes()
+        lda.fit(X, true_y)
+        gnb.fit(X, true_y)
+        lda_pred, gnb_pred = lda.predict(X), gnb.predict(X)
 
-        # Plot a figure with two suplots, showing the Gaussian Naive Bayes predictions on the left and LDA predictions
-        # on the right. Plot title should specify dataset used and subplot titles should specify algorithm and accuracy
+        # Plot a figure with two suplots, showing the Gaussian Naive Bayes
+        # predictions on the left and LDA predictions on the right.
+        # Plot title should specify dataset used and subplot titles should
+        # specify algorithm and accuracy
         # Create subplots
         from IMLearn.metrics import accuracy
-        raise NotImplementedError()
+        fig = make_subplots(rows=1, cols=2,
+                            subplot_titles=(f'Gaussian Naive Bayes Accuracy: {100 * accuracy(gnb_pred, true_y):.2f}%',
+                                            f'LDA Accuracy: {100 * accuracy(lda_pred, true_y):.2f}%'))
 
-        # Add traces for data-points setting symbols and colors
-        raise NotImplementedError()
+        # Add traces for data-points. Color represents predicted class, marker symbol represents actual class
+        color_palette = ["cornflowerblue", "indianred", "burlywood"]  # color palette
+        marker_symbols = ['circle', 'triangle-up', 'cross']  # marker symbols
+
+        for i, pred in enumerate([gnb_pred, lda_pred], start=1):
+            marker_dict = dict(color=[color_palette[int(p)] for p in pred],
+                               symbol=[marker_symbols[int(ty)] for ty in true_y])
+            fig.add_trace(go.Scatter(x=X[:, 0], y=X[:, 1], mode='markers', marker=marker_dict), row=1, col=i)
 
         # Add `X` dots specifying fitted Gaussians' means
-        raise NotImplementedError()
+        for i, model in enumerate([gnb, lda], start=1):
+            fig.add_trace(go.Scatter(x=model.mu_[:, 0], y=model.mu_[:, 1], mode="markers",
+                                     marker=dict(symbol="x", color="black")), row=1, col=i)
 
         # Add ellipses depicting the covariances of the fitted Gaussians
-        raise NotImplementedError()
+        for i in range(len(np.unique(true_y))):
+            fig.add_trace(get_ellipse(gnb.mu_[i], np.diag(gnb.vars_[i])), row=1, col=1)
+            fig.add_trace(get_ellipse(lda.mu_[i], lda.cov_), row=1, col=2)
+
+        # Update layout and show figure
+        fig.update_layout(title_text=f'Comparing Classifiers on {f} Dataset', showlegend=False)
+        fig.show()
 
 
 if __name__ == '__main__':

@@ -23,8 +23,9 @@ class LDA(BaseEstimator):
         The inverse of the estimated features covariance. To be set in `LDA.fit`
 
     self.pi_: np.ndarray of shape (n_classes)
-        The estimated class probabilities. To be set in `GaussianNaiveBayes.fit`
+        The estimated class probabilities. To be set in `LDA.fit`
     """
+
     def __init__(self):
         """
         Instantiate an LDA classifier
@@ -46,7 +47,22 @@ class LDA(BaseEstimator):
         y : ndarray of shape (n_samples, )
             Responses of input data to fit to
         """
-        raise NotImplementedError()
+        self.classes_, n_classes = np.unique(y, return_counts=True)
+        self.pi_ = n_classes / y.shape[0]
+
+        # Calculate mean for each class
+        self.mu_ = np.array([np.mean(X[y == c], axis=0)
+                             for c in self.classes_])
+
+        # Center the data and calculate covariance matrix
+        X_centered = np.array([X[i] - self.mu_[np.where(
+            self.classes_ == y[i])[0][0]] for i in range(X.shape[0])])
+
+        self.cov_ = np.einsum('ij,ik->jk', X_centered, X_centered) / (
+                y.shape[0] - len(n_classes))
+
+        # Compute the inverse of the covariance matrix
+        self._cov_inv = inv(self.cov_)
 
     def _predict(self, X: np.ndarray) -> np.ndarray:
         """
@@ -62,7 +78,7 @@ class LDA(BaseEstimator):
         responses : ndarray of shape (n_samples, )
             Predicted responses of given samples
         """
-        raise NotImplementedError()
+        return self.classes_[np.argmax(self.likelihood(X), axis=1)]
 
     def likelihood(self, X: np.ndarray) -> np.ndarray:
         """
@@ -80,9 +96,19 @@ class LDA(BaseEstimator):
 
         """
         if not self.fitted_:
-            raise ValueError("Estimator must first be fitted before calling `likelihood` function")
+            raise ValueError("Estimator must first be fitted before calling "
+                             "`likelihood` function")
 
-        raise NotImplementedError()
+        # Calculate terms that do not depend on the sample
+        z = np.sqrt(((2 * np.pi) ** X.shape[1]) * det(self.cov_))
+
+        # Calculate terms that depend on the sample
+        X_centered = X[:, np.newaxis, :] - self.mu_
+        e = np.exp(-0.5 * np.einsum('...i,ij,...j->...', X_centered,
+                                    self._cov_inv, X_centered))
+
+        # Calculate and return the likelihoods
+        return (e / z) * self.pi_
 
     def _loss(self, X: np.ndarray, y: np.ndarray) -> float:
         """
@@ -102,4 +128,4 @@ class LDA(BaseEstimator):
             Performance under missclassification loss function
         """
         from ...metrics import misclassification_error
-        raise NotImplementedError()
+        return misclassification_error(y, self._predict(X))
