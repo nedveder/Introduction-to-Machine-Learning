@@ -51,15 +51,12 @@ class LDA(BaseEstimator):
         self.pi_ = n_classes / y.shape[0]
 
         # Calculate mean for each class
-        self.mu_ = np.array([np.mean(X[y == c], axis=0)
-                             for c in self.classes_])
+        self.mu_ = np.array([np.mean(X[y == c], axis=0) for c in self.classes_])
 
         # Center the data and calculate covariance matrix
-        X_centered = np.array([X[i] - self.mu_[np.where(
-            self.classes_ == y[i])[0][0]] for i in range(X.shape[0])])
+        X_centered = np.array([X[i] - self.mu_[np.where(self.classes_ == y[i])[0][0]] for i in range(X.shape[0])])
 
-        self.cov_ = np.einsum('ij,ik->jk', X_centered, X_centered) / (
-                y.shape[0] - len(n_classes))
+        self.cov_ = np.einsum('ij,ik->jk', X_centered, X_centered) / (y.shape[0] - len(n_classes))
 
         # Compute the inverse of the covariance matrix
         self._cov_inv = inv(self.cov_)
@@ -104,8 +101,7 @@ class LDA(BaseEstimator):
 
         # Calculate terms that depend on the sample
         X_centered = X[:, np.newaxis, :] - self.mu_
-        e = np.exp(-0.5 * np.einsum('...i,ij,...j->...', X_centered,
-                                    self._cov_inv, X_centered))
+        e = np.exp(-0.5 * np.einsum('...i,ij,...j->...', X_centered, self._cov_inv, X_centered))
 
         # Calculate and return the likelihoods
         return (e / z) * self.pi_
