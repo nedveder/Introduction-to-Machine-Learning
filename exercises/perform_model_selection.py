@@ -56,11 +56,11 @@ def select_regularization_parameter(n_samples: int = 50, n_evaluations: int = 50
     train_X, train_y, test_X, test_y = x[:n_samples], y[:n_samples], x[n_samples:], y[n_samples:]
 
     # Question 7 - Perform CV for different values of the regularization parameter for Ridge and Lasso regressions
-    ridge_labmdas, lasso_labmdas = np.linspace(1e-16, 2, n_evaluations), np.linspace(0.001, 2, n_evaluations)
+    ridge_labmdas, lasso_labmdas = np.linspace(0, 0.5, n_evaluations), np.linspace(0, 2.5, n_evaluations)
     ridge_score, lasso_score = np.zeros((n_evaluations, 2)), np.zeros((n_evaluations, 2))
     for i, (ridge_lam, lasso_lam) in enumerate(zip(ridge_labmdas, lasso_labmdas)):
         ridge_score[i] = cross_validate(RidgeRegression(ridge_lam), train_X, train_y, mean_square_error)
-        lasso_score[i] = cross_validate(Lasso(lasso_lam, max_iter=5000), train_X, train_y, mean_square_error)
+        lasso_score[i] = cross_validate(Lasso(lasso_lam), train_X, train_y, mean_square_error)
 
     # Plot results for Ridge and Lasso and compare train- and validation errors
     fig = make_subplots(rows=1, cols=2, subplot_titles=("Ridge", "Lasso"))
