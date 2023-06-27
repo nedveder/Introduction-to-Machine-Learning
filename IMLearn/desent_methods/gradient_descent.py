@@ -9,6 +9,7 @@ OUTPUT_VECTOR_TYPE = ["last", "best", "average"]
 
 
 def default_callback(**kwargs) -> NoReturn:
+    # Template for callback function
     pass
 
 
@@ -39,6 +40,7 @@ class GradientDescent:
         Callable function receives as input any argument relevant for the current GD iteration. Arguments
         are specified in the `GradientDescent.fit` function
     """
+
     def __init__(self,
                  learning_rate: BaseLR = FixedLR(1e-3),
                  tol: float = 1e-5,
@@ -119,4 +121,50 @@ class GradientDescent:
                 Euclidean norm of w^(t)-w^(t-1)
 
         """
-        raise NotImplementedError()
+        # Initialize the best solution and average solution
+        best_val = np.inf
+        best_weights = None
+        avg_weights = np.zeros_like(f.weights)
+        total_iter = 0
+
+        # Compute initial gradient
+        grad = f.compute_jacobian(X=X, y=y)
+        for t in range(self.max_iter_):
+
+            # Compute gradient of objective at current point
+            eta = self.learning_rate_.lr_step(t=t)
+
+            # Update weights
+            new_weights = f.weights - eta * grad
+
+            # Compute Euclidean norm of w^(t)-w^(t-1)
+            delta = np.linalg.norm(f.weights - new_weights)
+
+            # Update weights old value
+            f.weights = new_weights
+
+            # Check stopping criterion and break if satisfied
+            if delta < self.tol_:
+                break
+
+            # Compute objective value and gradient at current point
+            grad = f.compute_jacobian(X=X, y=y)
+            val = f.compute_output(X=X, y=y)
+
+            # Update best solution and average solution
+            if val < best_val:
+                best_val = val
+                best_weights = f.weights.copy()
+            avg_weights += f.weights.copy()
+
+            # Call callback function with relevant arguments
+            self.callback_(solver=self, weights=f.weights, val=val, grad=grad, t=t, eta=eta, delta=delta)
+            total_iter += 1
+
+        # Return solution
+        if self.out_type_ == "last":
+            return f.weights
+        elif self.out_type_ == "best":
+            return best_weights
+        elif self.out_type_ == "average":
+            return avg_weights / total_iter
